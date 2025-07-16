@@ -574,7 +574,7 @@ const historyCollection = collection(db, `artifacts/ai-workout-planner/users/${u
             UIElements.historyModal.classList.remove('hidden');
 
             try {
-                const historyCollection = collection(db, `artifacts/${appId}/users/${userId}/workout_history`);
+                const historyCollection = collection(db, `artifacts/ai-workout-planner/users/${userId}/workout_history`);
                 const q = query(historyCollection, orderBy("createdAt", "desc"), limit(30));
                 const querySnapshot = await getDocs(q);
 
