@@ -349,30 +349,32 @@ const firebaseConfig = {
             required: ["exercise_name", "sets", "reps", "rest", "youtube_query"]
         });
 
-        // --- Gemini API Call ---
-        async function callGeminiAPI(prompt, responseSchema) {
-            const payload = {
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: { responseMimeType: "application/json", responseSchema }
-            };
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${firebaseConfig.apiKey}`;
-            
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+        // --- Gemini API Call (via Serverless Function) ---
+async function callGeminiAPI(prompt, responseSchema) {
+    const payload = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json", responseSchema }
+    };
 
-            if (!response.ok) throw new Error(`API Error: ${response.status}`);
-            const result = await response.json();
+    // Netlify上の自作関数を呼び出す
+    const functionUrl = '/.netlify/functions/call-gemini';
 
-            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
-                return JSON.parse(result.candidates[0].content.parts[0].text);
-            } else {
-                console.error("Unexpected API response:", result);
-                throw new Error('AIからの応答が不正です。');
-            }
-        }
+    const response = await fetch(functionUrl, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+    const result = await response.json();
+
+    if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+        return JSON.parse(result.candidates[0].content.parts[0].text);
+    } else {
+        console.error("Unexpected API response:", result);
+        throw new Error('AIからの応答が不正です。');
+    }
+}
+
 
         // --- Display Logic ---
         const displayWorkoutPlan = (plan) => {
