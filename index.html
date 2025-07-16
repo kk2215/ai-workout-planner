@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI筋トレプランナー (分析・メモ機能付き)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans JP', 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6A82FB 0%, #FC5C7D 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        .option-btn {
+            transition: all 0.2s ease;
+            border: 1px solid #4A5568;
+        }
+        .option-btn.selected {
+            background-color: #6A82FB;
+            color: white;
+            border-color: #6A82FB;
+            box-shadow: 0 2px 8px rgba(106, 130, 251, 0.5);
+        }
+        #loader {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #6A82FB;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .modal {
+            transition: opacity 0.3s ease;
+        }
+        .form-input, .memo-textarea {
+            background-color: rgba(0,0,0,0.3);
+            border: 1px solid #4A5568;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            width: 100%;
+        }
+        .form-input {
+             padding: 0.5rem;
+             text-align: center;
+        }
+        .exercise-name-input {
+             background-color: transparent;
+             border: none;
+             color: #90cdf4; /* text-blue-300 */
+             font-size: 1.25rem; /* text-xl */
+             font-weight: 700; /* font-bold */
+             width: 100%;
+        }
+        .exercise-name-input:focus {
+            outline: none;
+            border-bottom: 2px solid #6A82FB;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+        
+        <header class="text-center mb-8 md:mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-pink-500">
+                AI Workout Planner
+            </h1>
+            <p class="text-gray-300 text-lg">あなただけの最強筋トレメニューをAIが提案</p>
+            <div class="mt-4">
+                 <button id="show-history-btn" class="text-blue-400 hover:text-blue-300 transition-colors">トレーニング履歴を見る</button>
+            </div>
+        </header>
+
+        <main class="bg-gray-800 p-6 md:p-8 rounded-2xl shadow-2xl">
+            
+            <div class="space-y-8">
+                <!-- Step 1: Select Level -->
+                <div>
+                    <h2 class="text-2xl font-bold mb-4 border-l-4 border-blue-400 pl-4">1. トレーニングレベル</h2>
+                    <div id="level-selector" class="grid grid-cols-3 gap-4">
+                        <button data-level="初心者" class="option-btn bg-gray-700 hover:bg-gray-600 p-3 rounded-lg font-semibold">初心者</button>
+                        <button data-level="中級者" class="option-btn bg-gray-700 hover:bg-gray-600 p-3 rounded-lg font-semibold selected">中級者</button>
+                        <button data-level="上級者" class="option-btn bg-gray-700 hover:bg-gray-600 p-3 rounded-lg font-semibold">上級者</button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Select Body Part -->
+                <div>
+                    <h2 class="text-2xl font-bold mb-4 border-l-4 border-blue-400 pl-4">2. 部位を選択</h2>
+                    <div id="part-selector" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                        <button data-part="chest" class="option-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg font-semibold">胸</button>
+                        <button data-part="back" class="option-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg font-semibold">背中</button>
+                        <button data-part="legs" class="option-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg font-semibold">脚</button>
+                        <button data-part="shoulders" class="option-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg font-semibold">肩</button>
+                        <button data-part="arms" class="option-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg font-semibold">腕</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Generate Menu -->
+            <div class="text-center mt-8">
+                <button id="generate-btn" class="btn-primary text-white font-bold py-3 px-8 rounded-full text-lg w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
+                    メニューを作成
+                </button>
+            </div>
+
+            <!-- Result Area -->
+            <div id="result-container" class="mt-8">
+                <div id="loader-container" class="hidden justify-center items-center py-8">
+                    <div id="loader"></div>
+                    <p class="ml-4 text-lg">AIがメニューを考案中...</p>
+                </div>
+                <div id="error-message" class="hidden text-center p-4 bg-red-900/50 rounded-lg"></div>
+                <div id="workout-plan" class="space-y-4"></div>
+            </div>
+        </main>
+
+        <footer class="text-center mt-8 text-gray-500">
+            <p>&copy; 2025 AI Workout Planner. All Rights Reserved.</p>
+        </footer>
+    </div>
+    
+    <!-- History Modal -->
+    <div id="history-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center p-4 hidden z-50">
+        <div class="bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-8">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-blue-400">トレーニング履歴</h2>
+                <button id="close-history-btn" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            <div id="history-content" class="space-y-6">
+                 <!-- Chart and History items will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+  apiKey: "AIzaSyC9wJaDZsig12W-FQN4f5EWIm2pGpVmXV8",
+  authDomain: "ai-workout-planner-db.firebaseapp.com",
+  projectId: "ai-workout-planner-db",
+  storageBucket: "ai-workout-planner-db.firebasestorage.app",
+  messagingSenderId: "352952125823",
+  appId: "1:352952125823:web:cc34993a67f806c2cc324a"
+};
+
+        // --- Firebase Initialization ---
+        let app, auth, db, userId;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (e) {
+            console.error("Firebase initialization error:", e);
+        }
+
+        // --- State Variables ---
+        let state = {
+            level: '中級者',
+            part: null,
+            currentPlan: [],
+        };
+        window.historyChart = null; // Chart instance
+
+        // --- DOM Elements ---
+        const UIElements = {
+            levelSelector: document.getElementById('level-selector'),
+            partSelector: document.getElementById('part-selector'),
+            generateBtn: document.getElementById('generate-btn'),
+            loader: document.getElementById('loader-container'),
+            errorMsg: document.getElementById('error-message'),
+            planContainer: document.getElementById('workout-plan'),
+            historyModal: document.getElementById('history-modal'),
+            showHistoryBtn: document.getElementById('show-history-btn'),
+            closeHistoryBtn: document.getElementById('close-history-btn'),
+            historyContent: document.getElementById('history-content'),
+        };
+
+        // --- Event Listeners ---
+        const setupEventListeners = () => {
+            UIElements.levelSelector.addEventListener('click', handleSelection);
+            UIElements.partSelector.addEventListener('click', handleSelection);
+            UIElements.generateBtn.addEventListener('click', generateWorkout);
+            UIElements.showHistoryBtn.addEventListener('click', showHistory);
+            UIElements.closeHistoryBtn.addEventListener('click', () => UIElements.historyModal.classList.add('hidden'));
+        };
+
+        // --- Auth Handling ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+            } else {
+                 try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Authentication failed:", error);
+                    showError("認証に失敗しました。");
+                }
+            }
+            validateSelections();
+        });
+
+        // --- UI Update Functions ---
+        const handleSelection = (e) => {
+            if (e.target.tagName !== 'BUTTON') return;
+            const parent = e.target.parentElement;
+            const key = parent.id.split('-')[0];
+            
+            Array.from(parent.children).forEach(btn => btn.classList.remove('selected'));
+            e.target.classList.add('selected');
+            state[key] = e.target.dataset[key];
+            validateSelections();
+        };
+
+        const validateSelections = () => {
+            UIElements.generateBtn.disabled = !(state.part && auth.currentUser);
+        };
+        
+        const toggleLoading = (isLoading) => {
+            UIElements.loader.style.display = isLoading ? 'flex' : 'none';
+            UIElements.generateBtn.disabled = isLoading;
+        };
+
+        const showError = (message) => {
+            UIElements.errorMsg.textContent = message;
+            UIElements.errorMsg.style.display = 'block';
+        };
+
+        // --- Main Workout Generation Logic ---
+        const generateWorkout = async () => {
+            if (UIElements.generateBtn.disabled) return;
+            
+            UIElements.planContainer.innerHTML = '';
+            UIElements.errorMsg.style.display = 'none';
+            toggleLoading(true);
+
+            try {
+                const prompt = createMainPrompt();
+                const schema = createMainSchema();
+                const response = await callGeminiAPI(prompt, schema);
+                state.currentPlan = response.workout_plan;
+                displayWorkoutPlan(response.workout_plan);
+            } catch (error) {
+                console.error('Error generating workout:', error);
+                showError('メニューの生成中にエラーが発生しました。');
+            } finally {
+                toggleLoading(false);
+            }
+        };
+
+        // --- Alternative Exercise Logic ---
+        const getAlternativeExercise = async (exerciseToReplace, cardElement) => {
+            cardElement.innerHTML = '<div class="flex justify-center items-center p-4"><div id="loader" class="w-8 h-8"></div></div>';
+            
+            try {
+                const prompt = createAlternativePrompt(exerciseToReplace);
+                const schema = createAlternativeSchema();
+                const newExercise = await callGeminiAPI(prompt, schema);
+                
+                const index = state.currentPlan.findIndex(ex => ex.exercise_name === exerciseToReplace.exercise_name);
+                if (index !== -1) {
+                    state.currentPlan[index] = newExercise;
+                }
+                
+                const newCardHTML = createExerciseCardHTML(newExercise);
+                cardElement.outerHTML = newCardHTML;
+                
+                const newCardElement = document.querySelector(`[data-exercise-name="${CSS.escape(newExercise.exercise_name)}"]`);
+                newCardElement.querySelector('.replace-btn').addEventListener('click', (e) => {
+                    getAlternativeExercise(newExercise, newCardElement);
+                });
+
+            } catch (error) {
+                console.error('Error getting alternative:', error);
+                cardElement.innerHTML = '<p class="text-red-400 text-center">代替種目の取得に失敗しました。</p>';
+            }
+        };
+
+        // --- Prompt and Schema Creation ---
+        const createMainPrompt = () => {
+            const partJapanese = UIElements.partSelector.querySelector(`[data-part="${state.part}"]`).textContent;
+            return `あなたは運動科学の博士号を持つパーソナルトレーナーです。以下の条件で筋トレメニューを作成してください。
+- レベル: ${state.level}
+- 部位: ${partJapanese}
+メニューには複数のエクササイズを含めてください。結果は指定のJSON形式で出力してください。`;
+        };
+        
+        const createMainSchema = () => ({
+            type: "OBJECT",
+            properties: {
+                workout_plan: {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            exercise_name: { type: "STRING" }, sets: { type: "STRING" }, reps: { type: "STRING" }, rest: { type: "STRING" }, youtube_query: { type: "STRING" }
+                        },
+                        required: ["exercise_name", "sets", "reps", "rest", "youtube_query"]
+                    }
+                }
+            },
+            required: ["workout_plan"]
+        });
+
+        const createAlternativePrompt = (exercise) => {
+            const partJapanese = UIElements.partSelector.querySelector(`[data-part="${state.part}"]`).textContent;
+            return `「${exercise.exercise_name}」の代替種目を1つ提案してください。条件は以下です。
+- レベル: ${state.level}
+- 部位: ${partJapanese}
+- 現在のメニュー: ${state.currentPlan.map(e => e.exercise_name).join(', ')}
+結果は単一のJSONオブジェクトで出力してください。`;
+        };
+
+        const createAlternativeSchema = () => ({
+            type: "OBJECT",
+            properties: {
+                exercise_name: { type: "STRING" }, sets: { type: "STRING" }, reps: { type: "STRING" }, rest: { type: "STRING" }, youtube_query: { type: "STRING" }
+            },
+            required: ["exercise_name", "sets", "reps", "rest", "youtube_query"]
+        });
+
+        // --- Gemini API Call ---
+        async function callGeminiAPI(prompt, responseSchema) {
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: "application/json", responseSchema }
+            };
+            const apiKey = ""; // Leave as-is
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error(`API Error: ${response.status}`);
+            const result = await response.json();
+
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                return JSON.parse(result.candidates[0].content.parts[0].text);
+            } else {
+                console.error("Unexpected API response:", result);
+                throw new Error('AIからの応答が不正です。');
+            }
+        }
+
+        // --- Display Logic ---
+        const displayWorkoutPlan = (plan) => {
+            UIElements.planContainer.innerHTML = '';
+            
+            const title = document.createElement('h2');
+            title.className = "text-2xl font-bold mb-4 border-l-4 border-blue-400 pl-4";
+            title.textContent = "ワークアウトメニュー";
+            UIElements.planContainer.appendChild(title);
+
+            const exerciseList = document.createElement('div');
+            exerciseList.id = 'exercise-list';
+            exerciseList.className = 'space-y-4';
+            UIElements.planContainer.appendChild(exerciseList);
+
+            plan.forEach(exercise => {
+                exerciseList.innerHTML += createExerciseCardHTML(exercise);
+            });
+            
+            document.querySelectorAll('.replace-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const card = e.target.closest('.glass-card');
+                    const exerciseName = card.dataset.exerciseName;
+                    const exercise = state.currentPlan.find(ex => ex.exercise_name === exerciseName);
+                    if (exercise) {
+                        getAlternativeExercise(exercise, card);
+                    }
+                });
+            });
+
+            // Add Memo Textarea
+            const memoContainer = document.createElement('div');
+            memoContainer.className = 'mt-6';
+            memoContainer.innerHTML = `
+                <label for="workout-memo" class="block text-lg font-semibold mb-2 text-gray-300">ワークアウトのメモ</label>
+                <textarea id="workout-memo" class="memo-textarea" rows="3" placeholder="今日の体調や気づき、次回の目標などを記録..."></textarea>
+            `;
+            UIElements.planContainer.appendChild(memoContainer);
+
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'mt-6 space-y-4';
+            
+            const addExerciseButton = document.createElement('button');
+            addExerciseButton.id = 'add-exercise-btn';
+            addExerciseButton.className = 'bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-full w-full';
+            addExerciseButton.textContent = '+ 種目を追加する';
+            buttonContainer.appendChild(addExerciseButton);
+            addExerciseButton.addEventListener('click', addCustomExercise);
+
+            const saveButton = document.createElement('button');
+            saveButton.id = 'save-workout-btn';
+            saveButton.className = 'btn-primary text-white font-bold py-3 px-8 rounded-full text-lg w-full';
+            saveButton.textContent = 'ワークアウトを完了して保存';
+            buttonContainer.appendChild(saveButton);
+            saveButton.addEventListener('click', saveCompletedWorkout);
+
+            UIElements.planContainer.appendChild(buttonContainer);
+        };
+        
+        const createExerciseCardHTML = (exercise, isCustom = false) => {
+            const youtubeLink = `https://www.youtube.com/results?search_query=${encodeURIComponent(exercise.youtube_query || exercise.exercise_name + ' やり方')}`;
+            const setCount = parseInt(exercise.sets?.replace(/[^0-9]/g, ''), 10) || 3;
+            
+            let setsHTML = '';
+            for (let i = 1; i <= setCount; i++) {
+                setsHTML += `
+                    <div class="grid grid-cols-4 gap-2 items-center">
+                        <span class="text-gray-400">${i}</span>
+                        <span class="text-center">${exercise.reps || '10'}</span>
+                        <input type="number" class="form-input" placeholder="--" aria-label="重量キログラム">
+                        <input type="number" class="form-input" placeholder="--" aria-label="実施レップ数">
+                    </div>
+                `;
+            }
+
+            const nameHTML = isCustom 
+                ? `<input type="text" class="exercise-name-input" placeholder="種目名を入力..." value="${exercise.exercise_name}">`
+                : `<h3 class="text-xl font-bold text-blue-300 flex-1">${exercise.exercise_name}</h3>`;
+
+            return `
+            <div class="glass-card p-5" data-exercise-name="${CSS.escape(exercise.exercise_name)}" data-custom="${isCustom}">
+                <div class="flex justify-between items-start gap-4 mb-3">
+                    <div class="flex-1">${nameHTML}</div>
+                    <div class="flex gap-2">
+                        ${!isCustom ? `<a href="${youtubeLink}" target="_blank" title="やり方をYouTubeで見る" class="flex-shrink-0 flex items-center justify-center w-10 h-10 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors duration-200">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2A29 29 0 0 0 23 11.75a29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>
+                        </a>
+                        <button title="別の種目に変更" class="replace-btn flex-shrink-0 flex items-center justify-center w-10 h-10 bg-gray-600 hover:bg-gray-500 text-white font-bold rounded-lg transition-colors duration-200">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        </button>` : 
+                        `<button title="種目を削除" class="delete-btn flex-shrink-0 flex items-center justify-center w-10 h-10 bg-red-800 hover:bg-red-700 text-white font-bold rounded-lg transition-colors duration-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </button>`
+                        }
+                    </div>
+                </div>
+                <div class="space-y-2 mt-4">
+                    <div class="grid grid-cols-4 gap-2 text-sm font-bold text-gray-300">
+                        <span>セット</span>
+                        <span class="text-center">目標レップ</span>
+                        <span class="text-center">重量(kg)</span>
+                        <span class="text-center">実施レップ</span>
+                    </div>
+                    ${setsHTML}
+                </div>
+            </div>`;
+        };
+        
+        const addCustomExercise = () => {
+            const exerciseList = document.getElementById('exercise-list');
+            const newExercise = { exercise_name: '', sets: '3', reps: '10', rest: '60秒', youtube_query: '' };
+            const cardHTML = createExerciseCardHTML(newExercise, true);
+            exerciseList.insertAdjacentHTML('beforeend', cardHTML);
+            
+            const newCard = exerciseList.lastElementChild;
+            newCard.querySelector('.delete-btn').addEventListener('click', () => {
+                newCard.remove();
+            });
+        };
+
+        // --- Firestore History Logic ---
+        const saveCompletedWorkout = async (e) => {
+            const saveBtn = e.target;
+            saveBtn.textContent = '保存中...';
+            saveBtn.disabled = true;
+
+            let totalVolume = 0;
+            const exerciseCards = document.querySelectorAll('#exercise-list .glass-card');
+            const completedPlan = Array.from(exerciseCards).map(card => {
+                const isCustom = card.dataset.custom === 'true';
+                const exerciseName = isCustom 
+                    ? card.querySelector('.exercise-name-input').value 
+                    : card.dataset.exerciseName;
+
+                if (!exerciseName) return null;
+
+                const records = [];
+                let exerciseVolume = 0;
+                const setRows = card.querySelectorAll('.grid.grid-cols-4.gap-2.items-center');
+                setRows.forEach(row => {
+                    const weight = parseFloat(row.children[2].value) || 0;
+                    const reps = parseInt(row.children[3].value) || 0;
+                    exerciseVolume += weight * reps;
+                    records.push({ weight: String(weight), reps: String(reps) });
+                });
+                totalVolume += exerciseVolume;
+                
+                return { 
+                    exercise_name: exerciseName,
+                    completed_sets: records 
+                };
+            }).filter(Boolean);
+
+            if (completedPlan.length === 0) {
+                showError("保存する種目がありません。");
+                saveBtn.textContent = 'ワークアウトを完了して保存';
+                saveBtn.disabled = false;
+                return;
+            }
+
+            const memo = document.getElementById('workout-memo').value;
+
+            if (!userId || !db) {
+                showError("保存するには認証が必要です。");
+                saveBtn.textContent = 'ワークアウトを完了して保存';
+                saveBtn.disabled = false;
+                return;
+            }; 
+
+            try {
+                const historyCollection = collection(db, ‘artifacts/ai-workout-planner/users/${userID}/workout_history’);
+                await addDoc(historyCollection, {
+                    level: state.level,
+                    part: state.part,
+                    workout_plan: completedPlan,
+                    totalVolume: totalVolume,
+                    memo: memo,
+                    createdAt: new Date()
+                });
+                saveBtn.textContent = `保存しました！ 総ボリューム: ${totalVolume} kg`;
+                setTimeout(() => {
+                    UIElements.planContainer.innerHTML = '';
+                }, 2500);
+            } catch (err) {
+                console.error("Error saving history:", err);
+                showError("履歴の保存に失敗しました。");
+                saveBtn.textContent = 'ワークアウトを完了して保存';
+                saveBtn.disabled = false;
+            }
+        };
+        
+        const showHistory = async () => {
+            if (!userId || !db) {
+                showError("履歴機能を利用するには認証が必要です。");
+                return;
+            }
+            UIElements.historyContent.innerHTML = '<div class="flex justify-center"><div id="loader"></div></div>';
+            UIElements.historyModal.classList.remove('hidden');
+
+            try {
+                const historyCollection = collection(db, `artifacts/${appId}/users/${userId}/workout_history`);
+                const q = query(historyCollection, orderBy("createdAt", "desc"), limit(30));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    UIElements.historyContent.innerHTML = '<p class="text-center text-gray-400">トレーニング履歴はまだありません。</p>';
+                    return;
+                }
+
+                UIElements.historyContent.innerHTML = `
+                    <div class="mb-8">
+                        <canvas id="history-chart"></canvas>
+                    </div>
+                    <div id="history-list" class="space-y-6"></div>
+                `;
+                
+                const historyData = [];
+                querySnapshot.forEach(doc => historyData.push(doc.data()));
+
+                // For Chart (oldest to newest)
+                const chartData = [...historyData].reverse();
+                const labels = chartData.map(data => data.createdAt.toDate().toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }));
+                const volumes = chartData.map(data => data.totalVolume || 0);
+
+                if (window.historyChart) {
+                    window.historyChart.destroy();
+                }
+                const ctx = document.getElementById('history-chart').getContext('2d');
+                window.historyChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: '総トレーニングボリューム (kg)',
+                            data: volumes,
+                            borderColor: '#6A82FB',
+                            backgroundColor: 'rgba(106, 130, 251, 0.2)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { labels: { color: '#D1D5DB' } } },
+                        scales: {
+                            y: { ticks: { color: '#9CA3AF' }, grid: { color: '#4B5563' } },
+                            x: { ticks: { color: '#9CA3AF' }, grid: { color: '#4B5563' } }
+                        }
+                    }
+                });
+
+                // For List (newest to oldest)
+                const historyList = document.getElementById('history-list');
+                historyData.forEach(data => {
+                    const partJapanese = UIElements.partSelector.querySelector(`[data-part="${data.part}"]`)?.textContent || data.part;
+                    const date = data.createdAt.toDate().toLocaleDateString('ja-JP');
+
+                    let exercisesHTML = data.workout_plan.map(ex => {
+                        let setsDetail = ex.completed_sets.map((set, index) => 
+                            `<span class="text-xs text-gray-400 block">${index + 1}s: ${set.weight}kg x ${set.reps}reps</span>`
+                        ).join('');
+                        return `<li class="mt-2">
+                                    <span class="font-semibold">${ex.exercise_name}</span>
+                                    <div class="pl-4">${setsDetail}</div>
+                                </li>`;
+                    }).join('');
+                    
+                    const memoHTML = data.memo ? `<div class="mt-3 p-3 bg-gray-900/50 rounded-lg"><p class="text-gray-300 whitespace-pre-wrap text-sm">${data.memo}</p></div>` : '';
+
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'glass-card p-5';
+                    historyItem.innerHTML = `
+                        <div class="flex justify-between items-start gap-4">
+                            <div>
+                                <p class="text-sm text-gray-400">${date}</p>
+                                <h3 class="text-xl font-bold text-blue-300 mb-2">${partJapanese} (${data.level})</h3>
+                            </div>
+                            <div class="text-right flex-shrink-0">
+                                <p class="text-sm text-gray-400">総ボリューム</p>
+                                <p class="text-lg font-bold text-pink-400">${data.totalVolume || 0} kg</p>
+                            </div>
+                        </div>
+                        ${memoHTML}
+                        <ul class="list-none mt-3">${exercisesHTML}</ul>`;
+                    historyList.appendChild(historyItem);
+                });
+            } catch (e) {
+                console.error("Error fetching history:", e);
+                UIElements.historyContent.innerHTML = '<p class="text-center text-red-400">履歴の読み込みに失敗しました。</p>';
+            }
+        };
+        
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', setupEventListeners);
+
+    </script>
+</body>
+</html>
+
