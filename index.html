@@ -161,16 +161,15 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- Firebase Configuration ---
-        const firebaseConfig = {
-  apiKey: "AIzaSyC9wJaDZsig12W-FQN4f5EWIm2pGpVmXV8",
-  authDomain: "ai-workout-planner-db.firebaseapp.com",
-  projectId: "ai-workout-planner-db",
-  storageBucket: "ai-workout-planner-db.firebasestorage.app",
-  messagingSenderId: "352952125823",
-  appId: "1:352952125823:web:cc34993a67f806c2cc324a"
+      // --- Firebase Configuration ---
+const firebaseConfig = {
+  apiKey: "AIzaSyC9wJaDZsig12W-FQN4f5EWIm2pGpVmXV8",
+  authDomain: "ai-workout-planner-db.firebaseapp.com",
+  projectId: "ai-workout-planner-db",
+  storageBucket: "ai-workout-planner-db.appspot.com",
+  messagingSenderId: "352952125823",
+  appId: "1:352952125823:web:cc34993a67f806c2cc324a"
 };
-
         // --- Firebase Initialization ---
         let app, auth, db, userId;
         try {
@@ -545,7 +544,8 @@
             }; 
 
             try {
-                const historyCollection = collection(db, ‘artifacts/ai-workout-planner/users/${userID}/workout_history’);
+                // 変更後 (appIdを固定の文字列にする)
+const historyCollection = collection(db, `artifacts/ai-workout-planner/users/${userId}/workout_history`);
                 await addDoc(historyCollection, {
                     level: state.level,
                     part: state.part,
