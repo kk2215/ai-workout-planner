@@ -179,6 +179,7 @@
 
         // --- Firebase Initialization ---
         let app, auth, db, userId;
+        let isAuthReady = false; // Flag to track auth status
         try {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
@@ -225,18 +226,19 @@
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 userId = user.uid;
+                isAuthReady = true;
+                UIElements.showHistoryBtn.style.display = 'inline-block';
             } else {
-                 try {
-                    // FIX: This environment provides a custom token. Use it when available.
-                    // Fall back to anonymous sign-in only if the token is not provided.
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
+                try {
+                    // FIX: To prevent recurring referer errors in preview environments,
+                    // we will consistently use anonymous sign-in which is less restrictive.
+                    await signInAnonymously(auth);
                 } catch (error) {
-                    console.error("Authentication failed:", error);
-                    showError("認証に失敗しました。");
+                    console.error("Authentication failed and will be disabled for this session:", error);
+                    showError("認証に失敗しました。履歴機能は現在利用できません。");
+                    isAuthReady = false;
+                    userId = null;
+                    UIElements.showHistoryBtn.style.display = 'none';
                 }
             }
             validateSelections();
@@ -244,7 +246,8 @@
 
         // --- UI Update Functions ---
         const validateSelections = () => {
-            UIElements.generateBtn.disabled = !(state.part && auth.currentUser);
+            // Generate button only depends on selecting a part.
+            UIElements.generateBtn.disabled = !state.part;
         };
         
         const toggleLoading = (isLoading) => {
@@ -523,6 +526,13 @@
             saveBtn.textContent = '保存中...';
             saveBtn.disabled = true;
 
+            if (!isAuthReady || !userId) {
+                showError("認証に失敗したため、履歴を保存できません。");
+                saveBtn.textContent = 'ワークアウトを完了して保存';
+                saveBtn.disabled = false;
+                return;
+            }
+
             let totalVolume = 0;
             const exerciseCards = document.querySelectorAll('#exercise-list .glass-card');
             const completedPlan = Array.from(exerciseCards).map(card => {
@@ -558,14 +568,7 @@
             }
 
             const memo = document.getElementById('workout-memo').value;
-
-            if (!userId || !db) {
-                showError("保存するには認証が必要です。");
-                saveBtn.textContent = 'ワークアウトを完了して保存';
-                saveBtn.disabled = false;
-                return;
-            };
-
+            
             try {
                 const historyCollection = collection(db, `artifacts/ai-workout-planner/users/${userId}/workout_history`);
                 await addDoc(historyCollection, {
@@ -582,13 +585,14 @@
             } catch (err) {
                 console.error("Error saving history:", err);
                 showError("履歴の保存に失敗しました。");
+                saveBtn.textContent = 'ワークアウトを完了して保存';
                 saveBtn.disabled = false;
             }
         };
         
         const showHistory = async () => {
-            if (!userId || !db) {
-                showError("履歴機能を利用するには認証が必要です。");
+            if (!isAuthReady || !userId) {
+                showError("認証に失敗したため、履歴機能は利用できません。");
                 return;
             }
             UIElements.historyContent.innerHTML = '<div class="flex justify-center"><div id="loader"></div></div>';
@@ -693,4 +697,4 @@
 </html>
 ```
 
-この修正で、プレビュー環境でも安定して動作するはずです。お手数をおかけいたしま
+この修正により、プレビュー環境でも安定して動作するはずです。お手数をおかけいたしま
