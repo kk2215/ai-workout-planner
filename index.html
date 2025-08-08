@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI筋トレプランナー (分析・メモ機能付き)</title>
+    <title>AI筋トレプランナー (UX改善版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
@@ -20,6 +19,7 @@
             -webkit-backdrop-filter: blur(10px);
             border-radius: 1rem;
             border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
         }
         .btn-primary {
             background: linear-gradient(135deg, #6A82FB 0%, #FC5C7D 100%);
@@ -61,6 +61,12 @@
             border-radius: 0.5rem;
             padding: 0.75rem;
             width: 100%;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .form-input:focus, .memo-textarea:focus {
+            outline: none;
+            border-color: #6A82FB;
+            box-shadow: 0 0 0 2px rgba(106, 130, 251, 0.4);
         }
         .form-input {
              padding: 0.5rem;
@@ -78,6 +84,14 @@
             outline: none;
             border-bottom: 2px solid #6A82FB;
         }
+        /* Animation for new elements */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white">
@@ -88,7 +102,7 @@
             <h1 class="text-4xl md:text-5xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-pink-500">
                 AI Workout Planner
             </h1>
-            <p class="text-gray-300 text-lg">あなただけの最強筋トレメニューをAIが提案</p>
+            <p class="text-gray-300 text-lg">科学的根拠に基づいた最強の筋トレメニューをAIが提案</p>
             <div class="mt-4">
                  <button id="show-history-btn" class="text-blue-400 hover:text-blue-300 transition-colors">トレーニング履歴を見る</button>
             </div>
@@ -97,30 +111,22 @@
         <main class="bg-gray-800 p-6 md:p-8 rounded-2xl shadow-2xl">
             
             <div class="space-y-8">
-                <!-- Step 1: Select Level -->
+                <!-- Step 1: Select Body Part or Split -->
                 <div>
-                    <h2 class="text-2xl font-bold mb-4 border-l-4 border-blue-400 pl-4">1. トレーニングレベル</h2>
-                    <div id="level-selector" class="grid grid-cols-3 gap-4">
-                        <button data-level="初心者" class="option-btn bg-gray-700 hover:bg-gray-600 p-3 rounded-lg font-semibold">初心者</button>
-                        <button data-level="中級者" class="option-btn bg-gray-700 hover:bg-gray-600 p-3 rounded-lg font-semibold selected">中級者</button>
-                        <button data-level="上級者" class="option-btn bg-gray-700 hover:bg-gray-600 p-3 rounded-lg font-semibold">上級者</button>
-                    </div>
-                </div>
-
-                <!-- Step 2: Select Body Part -->
-                <div>
-                    <h2 class="text-2xl font-bold mb-4 border-l-4 border-blue-400 pl-4">2. 部位を選択</h2>
-                    <div id="part-selector" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                    <h2 class="text-2xl font-bold mb-4 border-l-4 border-blue-400 pl-4">1. トレーニングを選択</h2>
+                    <div id="part-selector" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        <button data-part="push" class="option-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg font-semibold">Push</button>
+                        <button data-part="pull" class="option-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg font-semibold">Pull</button>
+                        <button data-part="legs" class="option-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg font-semibold">Legs</button>
                         <button data-part="chest" class="option-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg font-semibold">胸</button>
                         <button data-part="back" class="option-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg font-semibold">背中</button>
-                        <button data-part="legs" class="option-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg font-semibold">脚</button>
                         <button data-part="shoulders" class="option-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg font-semibold">肩</button>
                         <button data-part="arms" class="option-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg font-semibold">腕</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Step 3: Generate Menu -->
+            <!-- Step 2: Generate Menu -->
             <div class="text-center mt-8">
                 <button id="generate-btn" class="btn-primary text-white font-bold py-3 px-8 rounded-full text-lg w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
                     メニューを作成
@@ -131,7 +137,7 @@
             <div id="result-container" class="mt-8">
                 <div id="loader-container" class="hidden justify-center items-center py-8">
                     <div id="loader"></div>
-                    <p class="ml-4 text-lg">AIがメニューを考案中...</p>
+                    <p class="ml-4 text-lg">AIが科学的根拠を基にメニューを考案中...</p>
                 </div>
                 <div id="error-message" class="hidden text-center p-4 bg-red-900/50 rounded-lg"></div>
                 <div id="workout-plan" class="space-y-4"></div>
@@ -161,15 +167,16 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-      // --- Firebase Configuration ---
-const firebaseConfig = {
-  apiKey: "AIzaSyC9wJaDZsig12W-FQN4f5EWIm2pGpVmXV8",
-  authDomain: "ai-workout-planner-db.firebaseapp.com",
-  projectId: "ai-workout-planner-db",
-  storageBucket: "ai-workout-planner-db.appspot.com",
-  messagingSenderId: "352952125823",
-  appId: "1:352952125823:web:cc34993a67f806c2cc324a"
-};
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyC9wJaDZsig12W-FQN4f5EWIm2pGpVmXV8", // This is required for auth
+          authDomain: "ai-workout-planner-db.firebaseapp.com",
+          projectId: "ai-workout-planner-db",
+          storageBucket: "ai-workout-planner-db.appspot.com",
+          messagingSenderId: "352952125823",
+          appId: "1:352952125823:web:cc34993a67f806c2cc324a"
+        };
+
         // --- Firebase Initialization ---
         let app, auth, db, userId;
         try {
@@ -182,7 +189,6 @@ const firebaseConfig = {
 
         // --- State Variables ---
         let state = {
-            level: '中級者',
             part: null,
             currentPlan: [],
         };
@@ -190,7 +196,6 @@ const firebaseConfig = {
 
         // --- DOM Elements ---
         const UIElements = {
-            levelSelector: document.getElementById('level-selector'),
             partSelector: document.getElementById('part-selector'),
             generateBtn: document.getElementById('generate-btn'),
             loader: document.getElementById('loader-container'),
@@ -204,8 +209,13 @@ const firebaseConfig = {
 
         // --- Event Listeners ---
         const setupEventListeners = () => {
-            UIElements.levelSelector.addEventListener('click', handleSelection);
-            UIElements.partSelector.addEventListener('click', handleSelection);
+            UIElements.partSelector.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'BUTTON') return;
+                Array.from(UIElements.partSelector.children).forEach(btn => btn.classList.remove('selected'));
+                e.target.classList.add('selected');
+                state.part = e.target.dataset.part;
+                validateSelections();
+            });
             UIElements.generateBtn.addEventListener('click', generateWorkout);
             UIElements.showHistoryBtn.addEventListener('click', showHistory);
             UIElements.closeHistoryBtn.addEventListener('click', () => UIElements.historyModal.classList.add('hidden'));
@@ -217,6 +227,8 @@ const firebaseConfig = {
                 userId = user.uid;
             } else {
                  try {
+                    // FIX: This environment provides a custom token. Use it when available.
+                    // Fall back to anonymous sign-in only if the token is not provided.
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
@@ -231,17 +243,6 @@ const firebaseConfig = {
         });
 
         // --- UI Update Functions ---
-        const handleSelection = (e) => {
-            if (e.target.tagName !== 'BUTTON') return;
-            const parent = e.target.parentElement;
-            const key = parent.id.split('-')[0];
-            
-            Array.from(parent.children).forEach(btn => btn.classList.remove('selected'));
-            e.target.classList.add('selected');
-            state[key] = e.target.dataset[key];
-            validateSelections();
-        };
-
         const validateSelections = () => {
             UIElements.generateBtn.disabled = !(state.part && auth.currentUser);
         };
@@ -292,12 +293,13 @@ const firebaseConfig = {
                     state.currentPlan[index] = newExercise;
                 }
                 
-                const newCardHTML = createExerciseCardHTML(newExercise);
-                cardElement.outerHTML = newCardHTML;
+                const newCardElement = document.createElement('div');
+                newCardElement.innerHTML = createExerciseCardHTML(newExercise);
+                cardElement.replaceWith(newCardElement.firstElementChild);
                 
-                const newCardElement = document.querySelector(`[data-exercise-name="${CSS.escape(newExercise.exercise_name)}"]`);
-                newCardElement.querySelector('.replace-btn').addEventListener('click', (e) => {
-                    getAlternativeExercise(newExercise, newCardElement);
+                const newCard = document.querySelector(`[data-exercise-name="${CSS.escape(newExercise.exercise_name)}"]`);
+                newCard.querySelector('.replace-btn').addEventListener('click', (e) => {
+                    getAlternativeExercise(newExercise, newCard);
                 });
 
             } catch (error) {
@@ -309,10 +311,21 @@ const firebaseConfig = {
         // --- Prompt and Schema Creation ---
         const createMainPrompt = () => {
             const partJapanese = UIElements.partSelector.querySelector(`[data-part="${state.part}"]`).textContent;
-            return `あなたは運動科学の博士号を持つパーソナルトレーナーです。以下の条件で筋トレメニューを作成してください。
-- レベル: ${state.level}
-- 部位: ${partJapanese}
-メニューには複数のエクササイズを含めてください。結果は指定のJSON形式で出力してください。`;
+            return `あなたは、運動生理学、生体力学、ストレングス＆コンディショニングの分野における最新の科学論文に精通した、世界トップクラスのパーソナルトレーナーAIです。
+あなたの役割は、科学的根拠（エビデンス）にのみ基づいて、最も効果的な筋力トレーニングメニューを設計することです。
+ユーザーは自身の挙上重量で強度を調整することを前提とし、ほとんどのトレーニーにとって効果的かつスケーラブルなメニューを作成してください。
+
+# 条件
+- メニューのタイプ: ${partJapanese}
+
+# メニュー作成時に考慮すべき科学的原則
+- 漸進性過負荷の原則を適用可能な構成にすること。
+- 筋肥大を最大化するため、適切なボリューム（セット数×レップ数）と強度（RPEやRIRを考慮したレップ数）を設定すること。
+- 異なる筋線維を刺激するため、高重量・低レップの種目と、中重量・高レップの種目を組み合わせること。
+- 適切な種目選択とトレーニング順序（例：多関節運動（コンパウンド種目）から単関節運動（アイソレーション種目）へ）。
+- 筋肥大と筋力向上において科学的に最適とされるセット間の休憩時間（インターバル）を設定すること。
+
+結果は必ず指定されたJSON形式で出力してください。`;
         };
         
         const createMainSchema = () => ({
@@ -334,10 +347,14 @@ const firebaseConfig = {
 
         const createAlternativePrompt = (exercise) => {
             const partJapanese = UIElements.partSelector.querySelector(`[data-part="${state.part}"]`).textContent;
-            return `「${exercise.exercise_name}」の代替種目を1つ提案してください。条件は以下です。
-- レベル: ${state.level}
-- 部位: ${partJapanese}
+            return `「${exercise.exercise_name}」の代替種目を1つ提案してください。
+提案は、運動科学の最新の知見に基づき、同じ筋群を刺激し、かつ同等の効果が期待できるものにしてください。
+現在のメニューにある他の種目とは異なる刺激を与えられる種目を優先してください。
+
+# 条件
+- メニューのタイプ: ${partJapanese}
 - 現在のメニュー: ${state.currentPlan.map(e => e.exercise_name).join(', ')}
+
 結果は単一のJSONオブジェクトで出力してください。`;
         };
 
@@ -350,39 +367,37 @@ const firebaseConfig = {
         });
 
         // --- Gemini API Call (via Serverless Function) ---
-async function callGeminiAPI(prompt, responseSchema) {
-    const payload = {
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json", responseSchema }
-    };
+        async function callGeminiAPI(prompt, responseSchema) {
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: "application/json", responseSchema }
+            };
+            
+            const functionUrl = '/.netlify/functions/call-gemini';
+            
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
 
-    // Netlify上の自作関数を呼び出す
-    const functionUrl = '/.netlify/functions/call-gemini';
+            if (!response.ok) throw new Error(`API Error: ${response.status}`);
+            const result = await response.json();
 
-    const response = await fetch(functionUrl, {
-        method: 'POST',
-        body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) throw new Error(`API Error: ${response.status}`);
-    const result = await response.json();
-
-    if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
-        return JSON.parse(result.candidates[0].content.parts[0].text);
-    } else {
-        console.error("Unexpected API response:", result);
-        throw new Error('AIからの応答が不正です。');
-    }
-}
-
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                return JSON.parse(result.candidates[0].content.parts[0].text);
+            } else {
+                console.error("Unexpected API response:", result);
+                throw new Error('AIからの応答が不正です。');
+            }
+        }
 
         // --- Display Logic ---
         const displayWorkoutPlan = (plan) => {
             UIElements.planContainer.innerHTML = '';
             
             const title = document.createElement('h2');
-            title.className = "text-2xl font-bold mb-4 border-l-4 border-blue-400 pl-4";
-            title.textContent = "ワークアウトメニュー";
+            title.className = "text-2xl font-bold mb-4 border-l-4 border-blue-400 pl-4 fade-in";
+            title.textContent = "AI提案ワークアウトメニュー";
             UIElements.planContainer.appendChild(title);
 
             const exerciseList = document.createElement('div');
@@ -390,8 +405,12 @@ async function callGeminiAPI(prompt, responseSchema) {
             exerciseList.className = 'space-y-4';
             UIElements.planContainer.appendChild(exerciseList);
 
-            plan.forEach(exercise => {
-                exerciseList.innerHTML += createExerciseCardHTML(exercise);
+            plan.forEach((exercise, index) => {
+                const cardWrapper = document.createElement('div');
+                cardWrapper.innerHTML = createExerciseCardHTML(exercise);
+                const card = cardWrapper.firstElementChild;
+                card.style.animationDelay = `${index * 100}ms`;
+                exerciseList.appendChild(card);
             });
             
             document.querySelectorAll('.replace-btn').forEach(button => {
@@ -405,9 +424,9 @@ async function callGeminiAPI(prompt, responseSchema) {
                 });
             });
 
-            // Add Memo Textarea
             const memoContainer = document.createElement('div');
-            memoContainer.className = 'mt-6';
+            memoContainer.className = 'mt-6 fade-in';
+            memoContainer.style.animationDelay = `${plan.length * 100}ms`;
             memoContainer.innerHTML = `
                 <label for="workout-memo" class="block text-lg font-semibold mb-2 text-gray-300">ワークアウトのメモ</label>
                 <textarea id="workout-memo" class="memo-textarea" rows="3" placeholder="今日の体調や気づき、次回の目標などを記録..."></textarea>
@@ -415,12 +434,13 @@ async function callGeminiAPI(prompt, responseSchema) {
             UIElements.planContainer.appendChild(memoContainer);
 
             const buttonContainer = document.createElement('div');
-            buttonContainer.className = 'mt-6 space-y-4';
+            buttonContainer.className = 'mt-6 space-y-4 fade-in';
+            buttonContainer.style.animationDelay = `${(plan.length + 1) * 100}ms`;
             
             const addExerciseButton = document.createElement('button');
             addExerciseButton.id = 'add-exercise-btn';
-            addExerciseButton.className = 'bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-full w-full';
-            addExerciseButton.textContent = '+ 種目を追加する';
+            addExerciseButton.className = 'bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-full w-full flex items-center justify-center gap-2 transition-transform hover:scale-105';
+            addExerciseButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> 種目を追加する`;
             buttonContainer.appendChild(addExerciseButton);
             addExerciseButton.addEventListener('click', addCustomExercise);
 
@@ -455,7 +475,7 @@ async function callGeminiAPI(prompt, responseSchema) {
                 : `<h3 class="text-xl font-bold text-blue-300 flex-1">${exercise.exercise_name}</h3>`;
 
             return `
-            <div class="glass-card p-5" data-exercise-name="${CSS.escape(exercise.exercise_name)}" data-custom="${isCustom}">
+            <div class="glass-card p-5 fade-in" data-exercise-name="${CSS.escape(exercise.exercise_name)}" data-custom="${isCustom}">
                 <div class="flex justify-between items-start gap-4 mb-3">
                     <div class="flex-1">${nameHTML}</div>
                     <div class="flex gap-2">
@@ -486,13 +506,15 @@ async function callGeminiAPI(prompt, responseSchema) {
         const addCustomExercise = () => {
             const exerciseList = document.getElementById('exercise-list');
             const newExercise = { exercise_name: '', sets: '3', reps: '10', rest: '60秒', youtube_query: '' };
-            const cardHTML = createExerciseCardHTML(newExercise, true);
-            exerciseList.insertAdjacentHTML('beforeend', cardHTML);
+            const cardWrapper = document.createElement('div');
+            cardWrapper.innerHTML = createExerciseCardHTML(newExercise, true);
+            const newCard = cardWrapper.firstElementChild;
+            exerciseList.appendChild(newCard);
             
-            const newCard = exerciseList.lastElementChild;
             newCard.querySelector('.delete-btn').addEventListener('click', () => {
                 newCard.remove();
             });
+            newCard.querySelector('input').focus();
         };
 
         // --- Firestore History Logic ---
@@ -542,13 +564,11 @@ async function callGeminiAPI(prompt, responseSchema) {
                 saveBtn.textContent = 'ワークアウトを完了して保存';
                 saveBtn.disabled = false;
                 return;
-            }; 
+            };
 
             try {
-                // 変更後 (appIdを固定の文字列にする)
-const historyCollection = collection(db, `artifacts/ai-workout-planner/users/${userId}/workout_history`);
+                const historyCollection = collection(db, `artifacts/ai-workout-planner/users/${userId}/workout_history`);
                 await addDoc(historyCollection, {
-                    level: state.level,
                     part: state.part,
                     workout_plan: completedPlan,
                     totalVolume: totalVolume,
@@ -562,7 +582,6 @@ const historyCollection = collection(db, `artifacts/ai-workout-planner/users/${u
             } catch (err) {
                 console.error("Error saving history:", err);
                 showError("履歴の保存に失敗しました。");
-                saveBtn.textContent = 'ワークアウトを完了して保存';
                 saveBtn.disabled = false;
             }
         };
@@ -595,7 +614,6 @@ const historyCollection = collection(db, `artifacts/ai-workout-planner/users/${u
                 const historyData = [];
                 querySnapshot.forEach(doc => historyData.push(doc.data()));
 
-                // For Chart (oldest to newest)
                 const chartData = [...historyData].reverse();
                 const labels = chartData.map(data => data.createdAt.toDate().toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }));
                 const volumes = chartData.map(data => data.totalVolume || 0);
@@ -627,7 +645,6 @@ const historyCollection = collection(db, `artifacts/ai-workout-planner/users/${u
                     }
                 });
 
-                // For List (newest to oldest)
                 const historyList = document.getElementById('history-list');
                 historyData.forEach(data => {
                     const partJapanese = UIElements.partSelector.querySelector(`[data-part="${data.part}"]`)?.textContent || data.part;
@@ -651,7 +668,7 @@ const historyCollection = collection(db, `artifacts/ai-workout-planner/users/${u
                         <div class="flex justify-between items-start gap-4">
                             <div>
                                 <p class="text-sm text-gray-400">${date}</p>
-                                <h3 class="text-xl font-bold text-blue-300 mb-2">${partJapanese} (${data.level})</h3>
+                                <h3 class="text-xl font-bold text-blue-300 mb-2">${partJapanese}</h3>
                             </div>
                             <div class="text-right flex-shrink-0">
                                 <p class="text-sm text-gray-400">総ボリューム</p>
@@ -674,4 +691,6 @@ const historyCollection = collection(db, `artifacts/ai-workout-planner/users/${u
     </script>
 </body>
 </html>
+```
 
+この修正で、プレビュー環境でも安定して動作するはずです。お手数をおかけいたしま
